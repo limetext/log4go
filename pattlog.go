@@ -3,9 +3,10 @@
 package log4go
 
 import (
-	"fmt"
 	"bytes"
+	"fmt"
 	"io"
+	"sync"
 )
 
 const (
@@ -21,6 +22,7 @@ type formatCacheType struct {
 }
 
 var formatCache = &formatCacheType{}
+var formatMutex sync.Mutex
 
 // Known format codes:
 // %T - Time (15:04:05 MST)
@@ -43,7 +45,9 @@ func FormatLogRecord(format string, rec *LogRecord) string {
 	out := bytes.NewBuffer(make([]byte, 0, 64))
 	secs := rec.Created.UnixNano() / 1e9
 
+	formatMutex.Lock()
 	cache := *formatCache
+	formatMutex.Unlock()
 	if cache.LastUpdateSeconds != secs {
 		month, day, year := rec.Created.Month(), rec.Created.Day(), rec.Created.Year()
 		hour, minute, second := rec.Created.Hour(), rec.Created.Minute(), rec.Created.Second()
@@ -55,8 +59,10 @@ func FormatLogRecord(format string, rec *LogRecord) string {
 			longTime:          fmt.Sprintf("%02d:%02d:%02d %s", hour, minute, second, zone),
 			longDate:          fmt.Sprintf("%04d/%02d/%02d", year, month, day),
 		}
+		formatMutex.Lock()
 		cache = *updated
 		formatCache = updated
+		formatMutex.Unlock()
 	}
 
 	// Split the string into pieces by % signs
