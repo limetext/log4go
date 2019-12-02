@@ -47,11 +47,11 @@ package log4go
 
 import (
 	"errors"
-	"os"
 	"fmt"
-	"time"
-	"strings"
+	"os"
 	"runtime"
+	"strings"
+	"time"
 )
 
 // Version information
@@ -195,13 +195,6 @@ func (log Logger) intLogf(lvl level, format string, args ...interface{}) {
 		return
 	}
 
-	// Determine caller func
-	pc, _, lineno, ok := runtime.Caller(2)
-	src := ""
-	if ok {
-		src = fmt.Sprintf("%s:%d", runtime.FuncForPC(pc).Name(), lineno)
-	}
-
 	msg := format
 	if len(args) > 0 {
 		msg = fmt.Sprintf(format, args...)
@@ -211,7 +204,7 @@ func (log Logger) intLogf(lvl level, format string, args ...interface{}) {
 	rec := &LogRecord{
 		Level:   lvl,
 		Created: time.Now(),
-		Source:  src,
+		Source:  log.callerFunc(),
 		Message: msg,
 	}
 
@@ -222,6 +215,19 @@ func (log Logger) intLogf(lvl level, format string, args ...interface{}) {
 		}
 		filt.LogWrite(rec)
 	}
+}
+
+var CallerSkip = 3
+
+// Determine caller func
+func (log Logger) callerFunc() string {
+	pc, _, lineno, ok := runtime.Caller(CallerSkip)
+	src := ""
+	if ok {
+		src = fmt.Sprintf("%s:%d", runtime.FuncForPC(pc).Name(), lineno)
+	}
+
+	return src
 }
 
 // Send a closure log message internally
@@ -239,18 +245,11 @@ func (log Logger) intLogc(lvl level, closure func() string) {
 		return
 	}
 
-	// Determine caller func
-	pc, _, lineno, ok := runtime.Caller(2)
-	src := ""
-	if ok {
-		src = fmt.Sprintf("%s:%d", runtime.FuncForPC(pc).Name(), lineno)
-	}
-
 	// Make the log record
 	rec := &LogRecord{
 		Level:   lvl,
 		Created: time.Now(),
-		Source:  src,
+		Source:  log.callerFunc(),
 		Message: closure(),
 	}
 
